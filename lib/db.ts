@@ -1,4 +1,5 @@
 import mysql from "mysql2/promise";
+import type { ExecuteValues } from "mysql2";
 
 let pool: mysql.Pool | null = null;
 
@@ -19,7 +20,7 @@ export function getPool() {
   return pool;
 }
 
-export async function query<T>(sql: string, params: Record<string, unknown> = {}) {
+export async function query<T>(sql: string, params: Record<string, ExecuteValues> = {}) {
   const [rows] = await getPool().execute(sql, params);
   return rows as T[];
 }
