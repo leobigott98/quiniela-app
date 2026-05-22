@@ -1,11 +1,18 @@
 import Link from "next/link";
+import { signOutAction } from "@/app/actions/auth";
 
-export function BottomNav({ active }: { active: "jugar" | "ranking" | "admin" }) {
+export function BottomNav({ isAdmin }: { isAdmin: boolean }) {
   return (
-    <nav className="nav">
-      <Link className={active === "jugar" ? "active" : ""} href="/jugar">Jugar</Link>
-      <Link className={active === "ranking" ? "active" : ""} href="/ranking">Ranking</Link>
-      <Link className={active === "admin" ? "active" : ""} href="/admin">Admin</Link>
+    <nav className="bottom-nav">
+      {isAdmin ? (
+        <Link href="/admin">Admin</Link>
+      ) : (
+        <Link href="/jugar">Jugar</Link>
+      )}
+      <Link href="/ranking">Ranking</Link>
+      <form action={signOutAction}>
+        <button type="submit">Salir</button>
+      </form>
     </nav>
   );
 }

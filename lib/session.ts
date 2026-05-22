@@ -1,25 +1,39 @@
+import crypto from "crypto";
 import { cookies } from "next/headers";
-import { SignJWT, jwtVerify } from "jose";
 
-const COOKIE_NAME = "quiniela_session";
-const secret = new TextEncoder().encode(process.env.SESSION_SECRET ?? "dev-secret-change-me-please-32-chars");
+const SESSION_COOKIE = "quiniela_session";
 
 export type SessionUser = {
   id: string;
+  email: string;
   name: string;
-  phoneNumber: string;
   isAdmin: boolean;
 };
 
-export async function createSession(user: SessionUser) {
-  const token = await new SignJWT(user)
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("14d")
-    .sign(secret);
+function getSecret() {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error("SESSION_SECRET must be at least 32 characters long.");
+  }
+  return secret;
+}
 
-  const store = await cookies();
-  store.set(COOKIE_NAME, token, {
+function base64url(input: Buffer | string) {
+  return Buffer.from(input).toString("base64url");
+}
+
+function sign(payload: string) {
+  return crypto.createHmac("sha256", getSecret()).update(payload).digest("base64url");
+}
+
+export function createSessionToken(user: SessionUser) {
+  const payload = base64url(JSON.stringify({ ...user, iat: Date.now() }));
+  return `${payload}.${sign(payload)}`;
+}
+
+export async function setSession(user: SessionUser) {
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, createSessionToken(user), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -28,20 +42,33 @@ export async function createSession(user: SessionUser) {
   });
 }
 
+export async function clearSession() {
+  const cookieStore = await cookies();
+  cookieStore.delete(SESSION_COOKIE);
+}
+
 export async function getSession(): Promise<SessionUser | null> {
-  const store = await cookies();
-  const token = store.get(COOKIE_NAME)?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
+  const [payload, signature] = token.split(".");
+  if (!payload || !signature) return null;
+
+  const expected = sign(payload);
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+    return null;
+  }
+
   try {
-    const { payload } = await jwtVerify(token, secret);
-    return payload as SessionUser;
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return {
+      id: decoded.id,
+      email: decoded.email,
+      name: decoded.name,
+      isAdmin: Boolean(decoded.isAdmin),
+    };
   } catch {
     return null;
   }
-}
-
-export async function destroySession() {
-  const store = await cookies();
-  store.delete(COOKIE_NAME);
 }

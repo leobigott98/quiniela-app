@@ -1,2 +1,8 @@
 import { redirect } from "next/navigation";
-export default function Home() { redirect("/jugar"); }
+import { getSession } from "@/lib/session";
+
+export default async function HomePage() {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  redirect(session.isAdmin ? "/admin" : "/jugar");
+}
