@@ -29,8 +29,7 @@ export async function GET() {
     user.created_at?.toISOString?.() ?? String(user.created_at),
   ]);
 
-  const csv = [header, ...rows].map((row) => row.map(csvEscape).join(",")).join("
-");
+  const csv = [header, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
 
   return new NextResponse(csv, {
     headers: {
