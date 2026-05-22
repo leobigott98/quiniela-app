@@ -9,12 +9,14 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@types/nodemailer": "^8.0.0",
+    "jose": "latest",
+    "mysql2": "latest",
     "next": "16.2.6",
+    "nodemailer": "^8.0.7",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "mysql2": "latest",
-    "zod": "latest",
-    "jose": "latest"
+    "zod": "latest"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
