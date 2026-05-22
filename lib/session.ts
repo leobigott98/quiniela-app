@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { cookies } from "next/headers";
 
 const SESSION_COOKIE = "quiniela_session";
@@ -44,7 +44,14 @@ export async function setSession(user: SessionUser) {
 
 export async function clearSession() {
   const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE);
+
+  cookieStore.set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  });
 }
 
 export async function getSession(): Promise<SessionUser | null> {
@@ -52,16 +59,30 @@ export async function getSession(): Promise<SessionUser | null> {
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
-  const [payload, signature] = token.split(".");
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+
+  const [payload, signature] = parts;
   if (!payload || !signature) return null;
 
   const expected = sign(payload);
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+
+  const signatureBuffer = Buffer.from(signature, "base64url");
+  const expectedBuffer = Buffer.from(expected, "base64url");
+
+  if (signatureBuffer.length !== expectedBuffer.length) {
+    return null;
+  }
+
+  if (!crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
     return null;
   }
 
   try {
-    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    const decoded = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8")
+    );
+
     return {
       id: decoded.id,
       email: decoded.email,
